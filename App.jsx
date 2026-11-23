@@ -1,11 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { supabase, hasSupabase } from './supabaseClient.js'
 import * as XLSX from 'xlsx'
-
 const todayISO = () => new Date().toISOString().slice(0,10)
 const uid = () => Math.random().toString(36).slice(2,10)
 const OK = ['ปกติ','ไม่มี','อัดจาระบีเพิ่ม']
-
 const SYSTEMS = [
   {key:'air', no:'1', name:'Cooling Tower', kind:'cooling', desc:'แบบฟอร์ม Liang Chi'},
   {key:'cold', no:'2', name:'COLD WATER PUMP', kind:'pump', desc:'ปั๊มน้ำเย็น'},
@@ -17,62 +15,16 @@ const SYSTEMS = [
   {key:'cdp', no:'7', name:'PUMP CDP, PCHP, SCHP', kind:'pump', desc:'ปั๊มระบบทำความเย็น'},
   {key:'fire', no:'8', name:'ตู้ FHC และ ถังดับเพลิง', kind:'fire', desc:'ตาราง 98 จุด / = ปกติ, x = ไม่ปกติ'},
 ]
-
 const PUMP_PRESETS = {
-  cold: [
-    {machineNo:'CWP-01', model:'CR45-5', location:'ห้องปั๊มชั้น G', kw:'', note:'160L-242FF300-G1'},
-    {machineNo:'CWP-02', model:'CR45-5', location:'ห้องปั๊มชั้น G', kw:'', note:'160L-242FF300-G1'},
-  ],
-  wastewater: [
-    {machineNo:'SSP-1', model:'TOS80C21.5', location:'Topo Room', kw:'1.5'},
-    {machineNo:'SSP-2', model:'TOS80C21.5', location:'Topo Room', kw:'1.5'},
-    {machineNo:'SSP-3', model:'TOS80C21.5', location:'ชั้นในห้อง AHU', kw:'1.5'},
-    {machineNo:'SSP-4', model:'TOS80C21.5', location:'ชั้นในห้อง AHU', kw:'1.5'},
-    {machineNo:'SSP-5', model:'TOS80C21.5', location:'ลานจอด G5', kw:'1.5'},
-    {machineNo:'SEP-3-6', model:'TOS80C21.5', location:'ลานจอด G5', kw:'1.5'},
-  ],
-  booster: [
-    {machineNo:'BP-01', model:'T-DA90LA', location:'ห้องปั๊มชั้น 18', kw:'1.5'},
-    {machineNo:'BP-02', model:'T-DA90LA', location:'ห้องปั๊มชั้น 18', kw:'1.5'},
-  ],
-  sump: [
-    {machineNo:'SDP-1', model:'TOS5082.75', location:'Pump Room', kw:'0.75'},
-    {machineNo:'SDP-2', model:'TOS5082.75', location:'Pump Room', kw:'0.75'},
-    {machineNo:'SDP-3', model:'TOS5082.75', location:'ลานจอดชั้น UG', kw:'0.75'},
-    {machineNo:'SDP-4', model:'TOS5082.75', location:'ลานจอดชั้น UG', kw:'0.75'},
-    {machineNo:'SDP-5', model:'TOS5082.75', location:'ลานจอดชั้น UG', kw:'0.75'},
-    {machineNo:'SDP-6', model:'TOS5082.75', location:'ลานจอดชั้น UG', kw:'0.75'},
-    {machineNo:'SDP-7', model:'TOS5082.75', location:'ลานจอดชั้น UG 5', kw:'0.75'},
-    {machineNo:'SDP-8', model:'TOS5082.75', location:'ลานจอดชั้น UG 5', kw:'0.75'},
-    {machineNo:'SDP-9', model:'TOS5082.75', location:'ชั้นใต้ดิน', kw:'0.75'},
-    {machineNo:'SDP-10', model:'TOS5082.75', location:'ชั้นใต้ดิน', kw:'0.75'},
-  ],
-  sanitary: [
-    {machineNo:'CRP-2', model:'REF 38773', location:'ห้องปั๊มน้ำท่า'},
-    {machineNo:'CRP-3', model:'REF 38773', location:'ห้องปั๊มน้ำท่า'},
-    {machineNo:'CRP-4', model:'REF 38773', location:'ห้องปั๊มน้ำท่า'},
-    {machineNo:'CRP-5', model:'REF 38773', location:'ห้องปั๊มน้ำท่า'},
-  ],
-  fan: [
-    {machineNo:'KEF-004', location:'ลานจอด ชั้น 4'}, {machineNo:'KEF-007', location:'ชั้น 4'},
-    {machineNo:'KEF-009', location:'ลานจอดรถชั้น 4'}, {machineNo:'KEF-011', location:'ลานจอดรถชั้น 4'},
-    {machineNo:'KEF-013', location:'ลานจอดรถชั้น 4'}, {machineNo:'KEF-015', location:'ลานจอดรถชั้น 4'},
-    {machineNo:'KEF-017', location:'ลานจอดรถชั้น 4'}, {machineNo:'KEF-019', location:''},
-    {machineNo:'KEF-021', location:''}, {machineNo:'KEF-023', location:''},
-    {machineNo:'MAF-005', location:''}, {machineNo:'MAF-006', location:''}, {machineNo:'MAF-008', location:''},
-    {machineNo:'MAF-010', location:''}, {machineNo:'MAF-012', location:''}, {machineNo:'MAF-014', location:''},
-    {machineNo:'MAF-016', location:''}, {machineNo:'MAF-018', location:''}, {machineNo:'MAF-020', location:''}, {machineNo:'MAF-022', location:''},
-  ],
-  cdp: [
-    {machineNo:'SCHP-01', model:'411,6x8x15', location:'ชั้น 5'}, {machineNo:'SCHP-02', model:'411,6x8x15', location:'ชั้น 5'},
-    {machineNo:'SCHP-03', model:'411,6x8x15', location:'ชั้น 5'}, {machineNo:'SCHP-04', model:'3344,4x5x12', location:'ชั้น 5'},
-    {machineNo:'PCHP-01', model:'411,8x10x12', location:'ชั้น 5'}, {machineNo:'PCHP-02', model:'411,8x10x12', location:'ชั้น 5'},
-    {machineNo:'PCHP-03', model:'411,8x10x12', location:'ชั้น 5'}, {machineNo:'PCHP-04', model:'3344,4x5x9.5', location:'ชั้น 5'},
-    {machineNo:'CDP-01', model:'4118x 10x15', location:'ชั้น 5'}, {machineNo:'CDP-02', model:'4118x 10x15', location:'ชั้น 5'},
-    {machineNo:'CDP-03', model:'4118x 10x15', location:'ชั้น 5'}, {machineNo:'CDP-04', model:'3344,4x5x11', location:'ชั้น 5'},
-  ],
+  cold: [{machineNo:'CWP-01', model:'CR45-5', location:'ห้องปั๊มชั้น G', kw:'', note:'160L-242FF300-G1'},{machineNo:'CWP-02', model:'CR45-5', location:'ห้องปั๊มชั้น G', kw:'', note:'160L-242FF300-G1'}],
+  wastewater: [{machineNo:'SSP-1', model:'TOS80C21.5', location:'Topo Room', kw:'1.5'},{machineNo:'SSP-2', model:'TOS80C21.5', location:'Topo Room', kw:'1.5'},{machineNo:'SSP-3', model:'TOS80C21.5', location:'ชั้นในห้อง AHU', kw:'1.5'},{machineNo:'SSP-4', model:'TOS80C21.5', location:'ชั้นในห้อง AHU', kw:'1.5'},{machineNo:'SSP-5', model:'TOS80C21.5', location:'ลานจอด G5', kw:'1.5'},{machineNo:'SEP-3-6', model:'TOS80C21.5', location:'ลานจอด G5', kw:'1.5'}],
+  booster: [{machineNo:'BP-01', model:'T-DA90LA', location:'ห้องปั๊มชั้น 18', kw:'1.5'},{machineNo:'BP-02', model:'T-DA90LA', location:'ห้องปั๊มชั้น 18', kw:'1.5'}],
+  sump: [{machineNo:'SDP-1', model:'TOS5082.75', location:'Pump Room', kw:'0.75'},{machineNo:'SDP-2', model:'TOS5082.75', location:'Pump Room', kw:'0.75'},{machineNo:'SDP-3', model:'TOS5082.75', location:'ลานจอดชั้น UG', kw:'0.75'},{machineNo:'SDP-4', model:'TOS5082.75', location:'ลานจอดชั้น UG', kw:'0.75'},{machineNo:'SDP-5', model:'TOS5082.75', location:'ลานจอดชั้น UG', kw:'0.75'},{machineNo:'SDP-6', model:'TOS5082.75', location:'ลานจอดชั้น UG', kw:'0.75'},{machineNo:'SDP-7', model:'TOS5082.75', location:'ลานจอดชั้น UG 5', kw:'0.75'},{machineNo:'SDP-8', model:'TOS5082.75', location:'ลานจอดชั้น UG 5', kw:'0.75'},{machineNo:'SDP-9', model:'TOS5082.75', location:'ชั้นใต้ดิน', kw:'0.75'},{machineNo:'SDP-10', model:'TOS5082.75', location:'ชั้นใต้ดิน', kw:'0.75'}],
+  sanitary: [{machineNo:'CRP-2', model:'REF 38773', location:'ห้องปั๊มน้ำท่า'},{machineNo:'CRP-3', model:'REF 38773', location:'ห้องปั๊มน้ำท่า'},{machineNo:'CRP-4', model:'REF 38773', location:'ห้องปั๊มน้ำท่า'},{machineNo:'CRP-5', model:'REF 38773', location:'ห้องปั๊มน้ำท่า'}],
+  fan: [{machineNo:'KEF-004', location:'ลานจอด ชั้น 4'},{machineNo:'KEF-007', location:'ชั้น 4'},{machineNo:'KEF-009', location:'ลานจอดรถชั้น 4'},{machineNo:'KEF-011', location:'ลานจอดรถชั้น 4'},{machineNo:'KEF-013', location:'ลานจอดรถชั้น 4'},{machineNo:'KEF-015', location:'ลานจอดรถชั้น 4'},{machineNo:'KEF-017', location:'ลานจอดรถชั้น 4'},{machineNo:'KEF-019', location:''},{machineNo:'KEF-021', location:''},{machineNo:'KEF-023', location:''},{machineNo:'MAF-005', location:''},{machineNo:'MAF-006', location:''},{machineNo:'MAF-008', location:''},{machineNo:'MAF-010', location:''},{machineNo:'MAF-012', location:''},{machineNo:'MAF-014', location:''},{machineNo:'MAF-016', location:''},{machineNo:'MAF-018', location:''},{machineNo:'MAF-020', location:''},{machineNo:'MAF-022', location:''}],
+  cdp: [{machineNo:'SCHP-01', model:'411,6x8x15', location:'ชั้น 5'},{machineNo:'SCHP-02', model:'411,6x8x15', location:'ชั้น 5'},{machineNo:'SCHP-03', model:'411,6x8x15', location:'ชั้น 5'},{machineNo:'SCHP-04', model:'3344,4x5x12', location:'ชั้น 5'},{machineNo:'PCHP-01', model:'411,8x10x12', location:'ชั้น 5'},{machineNo:'PCHP-02', model:'411,8x10x12', location:'ชั้น 5'},{machineNo:'PCHP-03', model:'411,8x10x12', location:'ชั้น 5'},{machineNo:'PCHP-04', model:'3344,4x5x9.5', location:'ชั้น 5'},{machineNo:'CDP-01', model:'4118x 10x15', location:'ชั้น 5'},{machineNo:'CDP-02', model:'4118x 10x15', location:'ชั้น 5'},{machineNo:'CDP-03', model:'4118x 10x15', location:'ชั้น 5'},{machineNo:'CDP-04', model:'3344,4x5x11', location:'ชั้น 5'}],
 }
-
+const COOLING_PRESETS = [{machineNo:'CT-01', model:'Liang Chi', location:'ดาดฟ้า'},{machineNo:'CT-02', model:'Liang Chi', location:'ดาดฟ้า'},{machineNo:'CT-03', model:'Liang Chi', location:'ดาดฟ้า'},{machineNo:'CT-04', model:'Liang Chi', location:'ดาดฟ้า'},{machineNo:'CT-05', model:'Liang Chi', location:'ดาดฟ้า'},{machineNo:'CT-06', model:'Liang Chi', location:'ดาดฟ้า'},{machineNo:'CT-07', model:'Liang Chi', location:'ดาดฟ้า'}]
 const FIRE_RAW = `1|FHC|G01|PLAZA FL G|หน้าลิฟท์ S1
 2|FHC|G02|PLAZA FL G|ข้างร้าน SE-ED
 3|FHC|G03|PLAZA FL G|ใน Topsuper
@@ -172,7 +124,6 @@ const FIRE_RAW = `1|FHC|G01|PLAZA FL G|หน้าลิฟท์ S1
 97|FE|EF 1203|TOWER FL 12|หน้าห้อง AHU NO.3
 98|FE|EF 1204|TOWER FL 12|หน้าห้อง AHU NO.3`
 const FIRE_PRESETS = FIRE_RAW.split('\n').map(l=>{const parts=l.split('|'); return {no:+parts[0], description:(parts[1]||'').trim(), code:(parts[2]||'').trim().toUpperCase(), location:(parts[3]||'').trim(), room:(parts[4]||'').trim()}}).filter(p=>p.code)
-
 const COOLING_GROUPS = [
   {group:'โครงสร้าง', items:[
     {label:'โครงสร้างภายใน', options:['มีการผุกร่อน','เริ่มมีการผุกร่อน','ปกติ']},
@@ -203,7 +154,20 @@ const COOLING_GROUPS = [
     {label:'มีเสียงดัง', options:['มี','ไม่มี']},
   ]},
 ]
-
+const getAppBase = () => { if (typeof window === 'undefined') return ''; return window.location.origin + window.location.pathname }
+const buildMachineLink = (base, systemKey, machineNo) => { const b = (base || getAppBase()).replace(/\/$/, ''); return `${b}?system=${encodeURIComponent(systemKey)}&machine=${encodeURIComponent(machineNo)}` }
+const qrImageUrl = (link) => `https://api.qrserver.com/v1/create-qr-code/?size=240x240&margin=12&data=${encodeURIComponent(link)}`
+const ALL_QR_ITEMS = [
+  ...COOLING_PRESETS.map(p => ({systemKey:'air', systemNo:'1', systemName:'Cooling Tower', machineNo:p.machineNo, model:p.model, location:p.location})),
+  ...(PUMP_PRESETS.cold||[]).map(p => ({systemKey:'cold', systemNo:'2', systemName:'COLD WATER PUMP', machineNo:p.machineNo, model:p.model, location:p.location})),
+  ...(PUMP_PRESETS.wastewater||[]).map(p => ({systemKey:'wastewater', systemNo:'3', systemName:'PUMP น้ำเสีย', machineNo:p.machineNo, model:p.model, location:p.location})),
+  ...(PUMP_PRESETS.booster||[]).map(p => ({systemKey:'booster', systemNo:'4', systemName:'BOOSTER PUMP', machineNo:p.machineNo, model:p.model, location:p.location})),
+  ...(PUMP_PRESETS.sump||[]).map(p => ({systemKey:'sump', systemNo:'5', systemName:'บ่อ SUMP', machineNo:p.machineNo, model:p.model, location:p.location})),
+  ...(PUMP_PRESETS.sanitary||[]).map(p => ({systemKey:'sanitary', systemNo:'5', systemName:'PUMP น้ำท่า', machineNo:p.machineNo, model:p.model, location:p.location})),
+  ...(PUMP_PRESETS.fan||[]).map(p => ({systemKey:'fan', systemNo:'6', systemName:'พัดลมดูดอากาศ / อัดอากาศ', machineNo:p.machineNo, model:p.model||'', location:p.location})),
+  ...(PUMP_PRESETS.cdp||[]).map(p => ({systemKey:'cdp', systemNo:'7', systemName:'PUMP CDP, PCHP, SCHP', machineNo:p.machineNo, model:p.model, location:p.location})),
+  ...FIRE_PRESETS.map(p => ({systemKey:'fire', systemNo:'8', systemName:'ตู้ FHC และ ถังดับเพลิง', machineNo:p.code, model:p.description, location:`${p.location} - ${p.room}`})),
+]
 function compressImage(file){
   return new Promise((resolve,reject)=>{
     const img = new Image()
@@ -214,13 +178,12 @@ function compressImage(file){
       if(w>max || h>max){ const r = Math.min(max/w, max/h); w=Math.round(w*r); h=Math.round(h*r) }
       const c = document.createElement('canvas'); c.width=w; c.height=h
       c.getContext('2d').drawImage(img,0,0,w,h)
-      c.toBlob(b=>{ URL.revokeObjectURL(url); resolve(new File([b], file.name.replace(/\\.[^.]+$/,'')+'.jpg',{type:'image/jpeg'})) }, 'image/jpeg', 0.82)
+      c.toBlob(b=>{ URL.revokeObjectURL(url); resolve(new File([b], file.name.replace(/\.[^.]+$/,'')+'.jpg',{type:'image/jpeg'})) }, 'image/jpeg', 0.82)
     }
     img.onerror = reject
     img.src = url
   })
 }
-
 function PhotoBox({photos, setPhotos}){
   const fileRef = useRef(null)
   const videoRef = useRef(null)
@@ -271,7 +234,6 @@ function PhotoBox({photos, setPhotos}){
       <button type="button" className="btn btn-ghost" onClick={camOn?stopCam:startCam}>{camOn?'ปิดกล้อง':'ถ่ายรูปจากกล้อง'}</button>
     </div>
     <input ref={fileRef} type="file" accept="image/*" style={{display:'none'}} onChange={e=>{addFiles(e.target.files); e.target.value=''}} />
-    {/* ปุ่มนี้คือตัวที่ทำให้มือถือเด้งไปแอปกล้องโดยตรง เสถียรสุด */}
     <label className="btn btn-line" style={{display:'block',textAlign:'center',marginTop:8,cursor:'pointer'}}>📷 เปิดแอปกล้องของเครื่อง (แนะนำบนมือถือ)
       <input type="file" accept="image/*" capture="environment" style={{display:'none'}} onChange={e=>{addFiles(e.target.files); e.target.value=''}} />
     </label>
@@ -280,7 +242,6 @@ function PhotoBox({photos, setPhotos}){
     {photos.length>0 && <div className="photo-grid" style={{marginTop:12}}>{photos.map((p,i)=><div key={i} style={{position:'relative'}}><img src={p.preview} alt="" /><button type="button" onClick={()=>setPhotos(prev=>prev.filter((_,j)=>j!==i))} style={{position:'absolute',top:6,right:6,background:'#c8102e',color:'#fff',border:0,borderRadius:999,padding:'4px 8px'}}>ลบ</button><div className="small">{p.name}</div></div>)}</div>}
   </div>
 }
-
 function SigPad({value, onChange, label}){
   const ref = useRef(null); const drawing = useRef(false); const pts = useRef([])
   useEffect(()=>{ if(value && ref.current){ const ctx=ref.current.getContext('2d'); ctx.clearRect(0,0,720,260); const img=new Image(); img.onload=()=>ctx.drawImage(img,0,0,720,260); img.src=value } },[value])
@@ -290,10 +251,9 @@ function SigPad({value, onChange, label}){
   const end=()=>{ if(!drawing.current) return; drawing.current=false; onChange(ref.current.toDataURL('image/png')) }
   return <div className="field"><label>{label}</label><canvas ref={ref} width={720} height={260} style={{width:'100%',height:110,border:'1px solid #e2e8f0',borderRadius:10,background:'#fff',touchAction:'none'}} onPointerDown={start} onPointerMove={move} onPointerUp={end} onPointerLeave={end} /><button type="button" className="btn btn-ghost" style={{marginTop:6}} onClick={()=>{ const c=ref.current; c.getContext('2d').clearRect(0,0,720,260); onChange('') }}>ล้างลายเซ็น</button></div>
 }
-
 export default function App(){
   const [user,setUser] = useState(null)
-  const [view,setView] = useState('login') // login | dashboard | form | history
+  const [view,setView] = useState('login')
   const [authMode,setAuthMode] = useState('login')
   const [authEmail,setAuthEmail] = useState('')
   const [authPass,setAuthPass] = useState('')
@@ -308,8 +268,10 @@ export default function App(){
   const [detail,setDetail] = useState(null)
   const [msg,setMsg] = useState('')
   const [saveErr,setSaveErr] = useState('')
-
-  // form state
+  const [qrBase,setQrBase] = useState('')
+  const [qrSearch,setQrSearch] = useState('')
+  const [qrFilter,setQrFilter] = useState('all')
+  const [highlightMachine,setHighlightMachine] = useState('')
   const [date,setDate] = useState(todayISO())
   const [month,setMonth] = useState('')
   const [inspector,setInspector] = useState('')
@@ -332,26 +294,40 @@ export default function App(){
   const [fireRows,setFireRows] = useState([{}])
   const [fireAddCode,setFireAddCode] = useState('')
   const [pumpAddNo,setPumpAddNo] = useState('')
-  // --- รูปประจำแถว: 1 เครื่อง = 1 รูป ห้ามซ้ำ ---
   const rowPhotoKey = (f)=> (f.name||'')+'|'+(f.size||0)+'|'+(f.lastModified||0)
   const canAddRow = (rows)=>{ const last=rows[rows.length-1]; if(last && !last.photo && !last.photo_url){ alert('แถวที่ '+rows.length+' ยังไม่มีรูป - แนบรูปแถวนี้ก่อนถึงจะเพิ่มแถวที่ '+(rows.length+1)+' ได้'); return false } return true }
   const onRowPhoto = async (rows,setRows,idx,file)=>{ if(!file) return; const key=rowPhotoKey(file); if(rows.some((x,i)=>i!==idx && x.photo && x.photo.key===key)){ alert('รูปนี้ใช้กับเครื่องอื่นไปแล้วครับ - ห้ามใช้รูปเดียวกันซ้ำ'); return } try{ const small = file.type.startsWith('image/') ? await compressImage(file) : file; const preview=URL.createObjectURL(small); setRows(prev=>prev.map((x,i)=>i===idx?{...x, photo:{file:small, preview, name:small.name, key}}:x)) }catch{ setRows(prev=>prev.map((x,i)=>i===idx?{...x, photo:{file, preview:URL.createObjectURL(file), name:file.name, key}}:x)) } }
   const stripRowPhoto = (rows)=> (rows||[]).map(({photo, ...rest})=>({...rest, photo_name: photo?.name||rest.photo_name||'', photo_url: rest.photo_url||''}))
   const uploadRowPhotos = async (rows)=>{ const out=[]; for(const r of rows){ let url=r.photo_url||''; if(r.photo?.file){ if(!hasSupabase){ url=r.photo.preview } else { try{ const name=`${Date.now()}-${uid()}-${r.photo.name||'photo.jpg'}`; const {error}=await supabase.storage.from('photos').upload(name, r.photo.file); if(error) throw error; const {data}=supabase.storage.from('photos').getPublicUrl(name); url=data.publicUrl }catch{ url=r.photo.preview } } } out.push({...r, photo_url:url}) } return out }
-
   const sys = SYSTEMS.find(s=>s.key===systemKey)
-
   useEffect(()=>{
+    setQrBase(getAppBase())
     const sp = new URLSearchParams(window.location.search)
     const q = sp.get('system')
-    if(q && SYSTEMS.some(s=>s.key===q)) setSystemKey(q)
+    const m = sp.get('machine')
+    if(q && SYSTEMS.some(s=>s.key===q)){
+      setSystemKey(q)
+      if(m){
+        try{ sessionStorage.setItem('pending_machine', JSON.stringify({system:q, machine:m})) }catch{}
+        setHighlightMachine(m)
+      }
+    }
     if(hasSupabase){
       supabase.auth.getSession().then(({data})=>{ if(data.session?.user) setUser({email:data.session.user.email, name:data.session.user.email}) })
       supabase.auth.onAuthStateChange((_e, sess)=>{ if(sess?.user) setUser({email:sess.user.email, name:sess.user.email}) })
     }
     loadRecords()
   },[])
-
+  useEffect(()=>{
+    if(!user) return
+    try{
+      const pending = JSON.parse(sessionStorage.getItem('pending_machine')||'null')
+      if(pending){
+        sessionStorage.removeItem('pending_machine')
+        setTimeout(()=>startSystem(pending.system, pending.machine), 350)
+      }
+    }catch{}
+  },[user])
   async function loadRecords(){
     let local=[]
     try{ local = JSON.parse(localStorage.getItem('supreme_records')||'[]') }catch{ local=[] }
@@ -365,18 +341,35 @@ export default function App(){
       } else setRecords(local)
     }catch{ setRecords(local) }
   }
-
-  function startSystem(key){
+  function startSystem(key, preselectMachine){
     const s = SYSTEMS.find(x=>x.key===key); setSystemKey(key); setDate(todayISO()); setMonth(''); setInspector(user?.name||''); setChecker(''); setProject('อาคารสุพรีม'); setLocation(''); setModel(''); setCtCount(''); setDesign({flow:'',hot:'',cold:'',wet:''}); setReducer(''); setBelt({type:'',model:'',ratio:'',check:'',pulley:'',grease:'',noise:''}); setGear({model:'',ratio:'',level:'',oil:'',noise:''}); setFanInfo({model:'',blades:'',angle:''}); setCoolingRes({}); setNote(''); setPhotos([]); setSig1(''); setSig2(''); setSaveErr(''); setMsg('')
-    if(s.kind==='pump'||s.kind==='fan') setPumpRows([{id:uid()}])
-    if(s.kind==='fire') setFireRows([{id:uid()}])
+    setHighlightMachine(preselectMachine || '')
+    if(s.kind==='pump'||s.kind==='fan'){
+      if(preselectMachine){
+        const pre=(PUMP_PRESETS[key]||[]).find(p=>p.machineNo===preselectMachine)
+        setPumpRows([{id:uid(), machineNo:preselectMachine, model:pre?.model||'', location:pre?.location||'', kw:pre?.kw||'', note:pre?.note||''}])
+      } else setPumpRows([{id:uid()}])
+    }
+    if(s.kind==='fire'){
+      if(preselectMachine){
+        const pre=FIRE_PRESETS.find(p=>(p.code||'').trim().toUpperCase()===(preselectMachine||'').trim().toUpperCase())
+        setFireRows([{id:uid(), no:pre?.no, description:pre?.description||'', code:preselectMachine, location:pre?.location||'', room:pre?.room||''}])
+      } else setFireRows([{id:uid()}])
+    }
+    if(s.kind==='cooling' && preselectMachine){ setNote(`ตรวจ ${preselectMachine}`); setCtCount('1'); setModel('Liang Chi') }
     setView('form'); window.scrollTo({top:0})
   }
-
+  function openPendingAfterLogin(){
+    try{
+      const pending = JSON.parse(sessionStorage.getItem('pending_machine')||'null')
+      if(pending){ sessionStorage.removeItem('pending_machine'); setTimeout(()=>startSystem(pending.system, pending.machine), 350); return true }
+    }catch{}
+    return false
+  }
   async function handleAuth(e){
     e.preventDefault(); setAuthErr(''); setAuthMsg('')
     if(authMode==='demo'){
-      if(authEmail.trim()==='admin' && authPass==='1234'){ setUser({email:'admin', name:'ผู้ดูแลระบบ'}); setInspector('ผู้ดูแลระบบ'); setView('dashboard'); return }
+      if(authEmail.trim()==='admin' && authPass==='1234'){ setUser({email:'admin', name:'ผู้ดูแลระบบ'}); setInspector('ผู้ดูแลระบบ'); setView('dashboard'); setTimeout(()=>openPendingAfterLogin(), 100); return }
       setAuthErr('บัญชีทดลองคือ admin / 1234'); return
     }
     if(!hasSupabase){ setAuthErr('ยังไม่ได้ตั้งค่า Supabase — ใช้โหมดทดลอง admin / 1234 ก่อน หรือใส่ VITE_SUPABASE_URL ใน .env แล้ว Deploy ใหม่'); return }
@@ -386,15 +379,11 @@ export default function App(){
       return
     }
     const {data, error} = await supabase.auth.signInWithPassword({email:authEmail, password:authPass})
-    if(error) setAuthErr(error.message); else { setUser({email:data.user.email, name:data.user.email}); setInspector(data.user.email); setView('dashboard') }
+    if(error) setAuthErr(error.message); else { setUser({email:data.user.email, name:data.user.email}); setInspector(data.user.email); setView('dashboard'); setTimeout(()=>openPendingAfterLogin(), 100) }
   }
-
   async function uploadPhotos(){
     if(!photos.length) return []
-    if(!hasSupabase){
-      // โหมดทดลอง: เก็บ preview ไว้เฉยๆ (ไม่คงทน) แต่ยังแสดงในประวัติของเครื่องนั้นได้
-      return photos.map(p=>p.preview)
-    }
+    if(!hasSupabase){ return photos.map(p=>p.preview) }
     const urls=[]
     for(const p of photos){
       try{
@@ -407,7 +396,6 @@ export default function App(){
     }
     return urls
   }
-
   function countResults(payload){
     let ok=0, bad=0
     if(payload.kind==='cooling'){ Object.values(payload.coolingRes||{}).forEach(v=>{ if(OK.includes(v)) ok++; else if(v) bad++ }) }
@@ -415,10 +403,8 @@ export default function App(){
     if(payload.kind==='fire'){ (payload.rows||[]).forEach(r=>{ if(r.result==='ปกติ') ok++; else if(r.result==='ไม่ปกติ') bad++ }) }
     return {ok, bad}
   }
-
   async function saveForm(){
     setSaveErr(''); setMsg('')
-    // validation
     if(!date) return setSaveErr('กรุณาเลือกวันที่ตรวจ')
     if(!inspector) return setSaveErr('กรุณากรอกชื่อผู้ตรวจ')
     if(sys.kind==='cooling'){
@@ -463,13 +449,11 @@ export default function App(){
         if(!error) cloudOk = true
       }catch{ cloudOk = false }
     }
-    // สำคัญ: ถ้า Cloud ต่อไม่ติด (Failed to fetch) ให้เก็บไว้ในเครื่องก่อน งานไม่หาย แล้วค่อยซิงก์ทีหลัง
     try{
       const all = JSON.parse(localStorage.getItem('supreme_records')||'[]'); all.unshift(rec); localStorage.setItem('supreme_records', JSON.stringify(all))
     }catch{}
     setMsg(cloudOk ? 'บันทึกสำเร็จแล้ว' : 'บันทึกสำเร็จแล้ว (เก็บไว้ในเครื่อง เพราะ Cloud ต่อไม่ติด - เปิดประวัติได้เลย ข้อมูลไม่หาย)'); await loadRecords(); setView('history'); window.scrollTo({top:0})
   }
-
   function exportExcel(){
     const filtered = filteredRecords()
     if(!filtered.length) return alert('ไม่มีข้อมูลให้ส่งออก')
@@ -496,7 +480,6 @@ export default function App(){
     })
     XLSX.writeFile(wb, `Supreme_Maintenance_${todayISO()}.xlsx`)
   }
-
   function filteredRecords(){
     return records.filter(r=>{
       if(filterSys!=='all' && r.system_key!==filterSys) return false
@@ -510,16 +493,26 @@ export default function App(){
       return true
     })
   }
-
+  const filteredQr = useMemo(()=>{
+    return ALL_QR_ITEMS.filter(it=>{
+      if(qrFilter!=='all' && it.systemKey!==qrFilter) return false
+      if(qrSearch){
+        const s = qrSearch.toLowerCase()
+        const hay = `${it.machineNo} ${it.systemName} ${it.model||''} ${it.location||''}`.toLowerCase()
+        if(!hay.includes(s)) return false
+      }
+      return true
+    })
+  },[qrFilter, qrSearch])
   const totalOk = records.reduce((a,r)=>a+(r.ok_count||0),0)
   const totalBad = records.reduce((a,r)=>a+(r.bad_count||0),0)
-
   if(view==='login'){
     return <div className="wrap">
       <img className="hero" src="/hero.jpg" alt="ช่างอาคารสุพรีม" />
       <div className="card" style={{textAlign:'center'}}><h2 style={{margin:'6px 0'}}>อาคารสุพรีม</h2><p className="small">ตรวจเช็คระบบอาคาร • ถ่ายรูปแนบฟอร์มได้จริง (ต้องเปิดผ่าน https)</p>
       {!hasSupabase && <div className="okbox">โหมดทดลอง: ใช้ <b>admin / 1234</b> ได้เลย ถ้าตั้งค่า Supabase แล้ว จะใช้สมัครสมาชิกจริงได้</div>}
       {hasSupabase && <div className="okbox">เชื่อมต่อ Supabase แล้ว • สมัครสมาชิกและอัปโหลดรูปขึ้น Cloud ได้</div>}
+      {highlightMachine && <div className="okbox">📷 สแกน QR มา: <b>{highlightMachine}</b> — ล็อกอินเสร็จจะเด้งไปฟอร์มเครื่องนั้นเลย</div>}
       </div>
       <div className="card">
         <div style={{display:'flex',gap:8}}>
@@ -539,20 +532,54 @@ export default function App(){
       </div>
     </div>
   }
-
+  if(view==='qr'){
+    return <div className="wrap">
+      <button className="btn btn-ghost" onClick={()=>setView('dashboard')}>← กลับหน้าหลัก</button>
+      <h2 style={{margin:'12px 0 4px'}}>📷 QR Code ตรวจเช็ค 1-8</h2>
+      <p className="small">สแกนแล้วเด้งไปฟอร์มของเบอร์เครื่องนั้นเลย ไม่ต้องเลือกเอง • รวม {ALL_QR_ITEMS.length} ใบ</p>
+      <div className="card">
+        <div className="field"><label>ลิงก์เว็บของคุณ (Base URL) — ต้องเป็นโดเมนที่ Deploy แล้ว ไม่งั้น QR จะสแกนไม่ติด</label><input value={qrBase} onChange={e=>setQrBase(e.target.value)} placeholder="https://supreme-maintenance.vercel.app" /></div>
+        <div className="field"><label>ค้นหาเบอร์เครื่อง / สถานที่</label><input value={qrSearch} onChange={e=>setQrSearch(e.target.value)} placeholder="เช่น CWP-01, SDP-3, G01, EF 101" /></div>
+        <div className="field"><label>หัวข้อ</label><select value={qrFilter} onChange={e=>setQrFilter(e.target.value)}><option value="all">ทั้งหมด 1-8</option>{SYSTEMS.map(s=><option key={s.key} value={s.key}>{s.no}. {s.name}</option>)}</select></div>
+        <div className="okbox">วิธีใช้: เอา QR ไปติดหน้าเครื่องนั้นๆ ช่างสแกน → ล็อกอิน → ฟอร์มเปิดมาพร้อมเบอร์เครื่องนั้นทันที</div>
+      </div>
+      <div style={{display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(170px,1fr))', gap:12}}>
+        {filteredQr.map(it=>{
+          const link = buildMachineLink(qrBase, it.systemKey, it.machineNo)
+          const qrImg = qrImageUrl(link)
+          return <div key={it.systemKey+'-'+it.machineNo} className="card" style={{textAlign:'center', padding:12}}>
+            <div className="small">{it.systemNo}. {it.systemName}</div>
+            <div style={{fontSize:20, fontWeight:800, margin:'4px 0'}}>{it.machineNo}</div>
+            <img src={qrImg} alt={`QR ${it.machineNo}`} style={{width:'100%', maxWidth:180, background:'#fff', borderRadius:8, border:'1px solid #e2e8f0'}} />
+            <div className="small" style={{marginTop:6}}>{it.model ? `รุ่น ${it.model} • ` : ''}{it.location}</div>
+            <div className="small" style={{wordBreak:'break-all', color:'#64748b'}}>{link}</div>
+            <div style={{display:'flex', gap:6, marginTop:8}}>
+              <button type="button" className="btn btn-ghost" style={{flex:1, fontSize:12}} onClick={()=>{ navigator.clipboard?.writeText(link); alert('คัดลอกลิงก์แล้ว: '+it.machineNo) }}>คัดลอกลิงก์</button>
+              <a href={qrImg} download={`QR-${it.machineNo}.png`} className="btn btn-line" style={{flex:1, fontSize:12, textAlign:'center', textDecoration:'none'}}>โหลด QR</a>
+            </div>
+            <button type="button" className="btn btn-red" style={{width:'100%', marginTop:6, fontSize:12}} onClick={()=>startSystem(it.systemKey, it.machineNo)}>ทดสอบ → เปิดฟอร์มนี้</button>
+          </div>
+        })}
+      </div>
+      {filteredQr.length===0 && <div className="card">ไม่เจอเบอร์เครื่องที่ค้นหา</div>}
+      <div className="nav"><button onClick={()=>setView('dashboard')}>🏠 หน้าหลัก</button><button onClick={()=>setView('qr')}>📷 QR Code</button><button onClick={()=>setView('history')}>📁 ประวัติ</button></div>
+    </div>
+  }
   if(view==='dashboard'){
     return <div className="wrap">
       <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}><div><b>อาคารสุพรีม</b><div className="small">{user?.name||user?.email} • {hasSupabase?'เชื่อม Cloud แล้ว':'โหมดทดลอง'}</div></div><button className="btn btn-ghost" onClick={async()=>{ if(hasSupabase) await supabase.auth.signOut(); setUser(null); setView('login') }}>ออกจากระบบ</button></div>
       <img className="hero" src="/hero.jpg" alt="" style={{marginTop:10}} />
-      <div className="card"><b>ตรวจเช็คระบบอาคาร</b><div style={{display:'flex',gap:10,marginTop:10}}><div style={{flex:1,background:'#eaf7ef',borderRadius:12,padding:12,textAlign:'center'}}><div style={{fontSize:22,fontWeight:800,color:'#0e8a4d'}}>{totalOk} ✓</div><div className="small">ปกติ</div></div><div style={{flex:1,background:'#fff0f1',borderRadius:12,padding:12,textAlign:'center'}}><div style={{fontSize:22,fontWeight:800,color:'#c8102e'}}>{totalBad} ✗</div><div className="small">ไม่ปกติ</div></div></div></div>
+      <div className="card"><b>ตรวจเช็คระบบอาคาร</b><div style={{display:'flex',gap:10,marginTop:10}}><div style={{flex:1,background:'#eaf7ef',borderRadius:12,padding:12,textAlign:'center'}}><div style={{fontSize:22,fontWeight:800,color:'#0e8a4d'}}>{totalOk} ✓</div><div className="small">ปกติ</div></div><div style={{flex:1,background:'#fff0f1',borderRadius:12,padding:12,textAlign:'center'}}><div style={{fontSize:22,fontWeight:800,color:'#c8102e'}}>{totalBad} ✗</div><div className="small">ไม่ปกติ</div></div></div>
+      <button className="btn btn-red" style={{width:'100%', marginTop:12}} onClick={()=>setView('qr')}>📷 ดู QR Code ทั้งหมด 1-8 (รวม {ALL_QR_ITEMS.length} ใบ) →</button>
+      <p className="small" style={{textAlign:'center', marginTop:6}}>สแกน QR ที่ติดหน้าเครื่อง → เด้งไปฟอร์มเบอร์นั้นเลย</p>
+      </div>
       {SYSTEMS.map(s=>{
         const n = records.filter(r=>r.system_key===s.key).length
-        return <div key={s.key} className="card" onClick={()=>startSystem(s.key)} style={{cursor:'pointer'}}><div style={{display:'flex',justifyContent:'space-between'}}><b>{s.no}. {s.name}</b><span className="chip">บันทึกแล้ว {n} ครั้ง</span></div><div className="small">{s.desc}</div><div style={{marginTop:10}}><button className="btn btn-red">เริ่มตรวจ →</button></div></div>
+        return <div key={s.key} className="card" onClick={()=>startSystem(s.key)} style={{cursor:'pointer'}}><div style={{display:'flex',justifyContent:'space-between'}}><b>{s.no}. {s.name}</b><span className="chip">บันทึกแล้ว {n} ครั้ง</span></div><div className="small">{s.desc}</div><div style={{marginTop:10, display:'flex', gap:8}}><button className="btn btn-red">เริ่มตรวจ →</button><button className="btn btn-line" onClick={(e)=>{ e.stopPropagation(); setQrFilter(s.key); setView('qr') }}>📷 QR หัวข้อนี้</button></div></div>
       })}
-      <div className="nav"><button onClick={()=>setView('dashboard')}>🏠 หน้าหลัก</button><button onClick={()=>{ if(systemKey) startSystem(systemKey); else setView('dashboard') }}>📋 ตรวจเช็ค</button><button onClick={()=>{setView('history')}}>📁 ประวัติ</button></div>
+      <div className="nav"><button onClick={()=>setView('dashboard')}>🏠 หน้าหลัก</button><button onClick={()=>{ if(systemKey) startSystem(systemKey); else setView('dashboard') }}>📋 ตรวจเช็ค</button><button onClick={()=>setView('qr')}>📷 QR Code</button><button onClick={()=>{setView('history')}}>📁 ประวัติ</button></div>
     </div>
   }
-
   if(view==='history'){
     const list = filteredRecords()
     return <div className="wrap">
@@ -596,14 +623,25 @@ export default function App(){
         <div style={{display:'flex',gap:10,marginTop:12}}>{detail.data?.sig1 && <div><div className="small">ลายเซ็นผู้ตรวจ</div><img src={detail.data.sig1} style={{width:'100%',border:'1px solid #eee',borderRadius:8}} /></div>}{detail.data?.sig2 && <div><div className="small">ลายเซ็นผู้ตรวจสอบ</div><img src={detail.data.sig2} style={{width:'100%',border:'1px solid #eee',borderRadius:8}} /></div>}</div>
         {detail.data?.note && <p>หมายเหตุรวม: {detail.data.note}</p>}
       </div></div>}
-      <div className="nav"><button onClick={()=>setView('dashboard')}>🏠 หน้าหลัก</button><button onClick={()=>{ if(systemKey) startSystem(systemKey) }}>📋 ตรวจเช็ค</button><button onClick={()=>setView('history')}>📁 ประวัติ</button></div>
+      <div className="nav"><button onClick={()=>setView('dashboard')}>🏠 หน้าหลัก</button><button onClick={()=>{ if(systemKey) startSystem(systemKey) }}>📋 ตรวจเช็ค</button><button onClick={()=>setView('qr')}>📷 QR Code</button><button onClick={()=>setView('history')}>📁 ประวัติ</button></div>
     </div>
   }
-
-  // FORM
   return <div className="wrap">
     <button className="btn btn-ghost" onClick={()=>setView('dashboard')}>← กลับหน้าหลัก</button>
     <h2 style={{margin:'12px 0 4px'}}>{sys.no}. {sys.name}</h2><p className="small">{sys.desc}</p>
+    {highlightMachine && <div className="okbox">📷 มาจาก QR: <b>{highlightMachine}</b> — เบอร์เครื่องถูกเลือกให้แล้ว กรอกผลตรวจได้เลย</div>}
+    {sys && (sys.kind==='pump'||sys.kind==='fan'||sys.kind==='fire') && pumpRows.length===1 && fireRows.length===1 && (
+      <div className="card" style={{textAlign:'center'}}>
+        <b>QR ของเครื่องนี้</b>
+        <p className="small">เอาไปติดหน้าเครื่องได้เลย สแกนแล้วเด้งมาหน้านี้</p>
+        {(() => {
+          const m = sys.kind==='fire' ? (fireRows[0]?.code||'') : (pumpRows[0]?.machineNo||'')
+          if(!m) return <div className="small">ยังไม่ได้เลือกเบอร์เครื่อง</div>
+          const link = buildMachineLink(qrBase || getAppBase(), sys.key, m)
+          return <div><img src={qrImageUrl(link)} alt="" style={{width:160, background:'#fff', borderRadius:8, border:'1px solid #e2e8f0'}} /><div style={{fontWeight:800, fontSize:18}}>{m}</div><div className="small" style={{wordBreak:'break-all'}}>{link}</div><button type="button" className="btn btn-line" style={{marginTop:8}} onClick={()=>{ navigator.clipboard?.writeText(link); alert('คัดลอกลิงก์ QR แล้ว') }}>คัดลอกลิงก์ QR</button></div>
+        })()}
+      </div>
+    )}
     {saveErr && <div className="err">{saveErr}</div>}
     <div className="card">
       <div className="row">
@@ -631,7 +669,6 @@ export default function App(){
         </div>
       </>}
     </div>
-
     {sys.kind==='cooling' && <>
       {COOLING_GROUPS.map(g=><div key={g.group} className="card"><h3>{g.group}</h3>{g.items.map(it=><div key={it.label} className="field"><label>{it.label} *</label><div style={{display:'flex',flexWrap:'wrap',gap:6}}>{it.options.map(op=><button key={op} type="button" onClick={()=>setCoolingRes(prev=>({...prev,[it.label]:op}))} className={`btn ${coolingRes[it.label]===op ? (OK.includes(op)?'btn-green':'btn-red') : 'btn-ghost'}`} style={{flex:'1 1 30%',padding:'10px 6px',fontSize:13}}>{op}</button>)}</div></div>)}</div>)}
       <div className="card"><h3>MECHANIC - Speed Reducer *</h3>
@@ -646,13 +683,12 @@ export default function App(){
       </div>
       <div className="card"><h3>ใบพัด</h3><div className="row"><div className="field"><label>Fan Model *</label><input value={fanInfo.model} onChange={e=>setFanInfo({...fanInfo,model:e.target.value})} /></div><div className="field"><label>จำนวนใบ *</label><input value={fanInfo.blades} onChange={e=>setFanInfo({...fanInfo,blades:e.target.value})} /></div><div className="field"><label>องศา *</label><input value={fanInfo.angle} onChange={e=>setFanInfo({...fanInfo,angle:e.target.value})} /></div></div></div>
     </>}
-
     {(sys.kind==='pump'||sys.kind==='fan') && <div className="card">
-      <h3>รายการเครื่อง</h3>
+      <h3>รายการเครื่อง {highlightMachine && <span style={{background:'#fef08a', padding:'2px 8px', borderRadius:999, fontSize:12}}>มาจาก QR: {highlightMachine}</span>}</h3>
       <div className="field"><label>เพิ่มเครื่องจากรายการ (แสดงเฉพาะเบอร์เครื่อง)</label><div style={{display:'flex',gap:8}}><select value={pumpAddNo} onChange={e=>setPumpAddNo(e.target.value)} style={{flex:1,padding:12,borderRadius:10,border:'1px solid #e2e8f0'}}><option value="">-- เลือกเบอร์เครื่อง --</option>{(PUMP_PRESETS[systemKey]||[]).map(p=><option key={p.machineNo} value={p.machineNo}>{p.machineNo}</option>)}</select><button type="button" className="btn btn-red" onClick={()=>{ if(!pumpAddNo) return; if(!canAddRow(pumpRows)) return; const pre=(PUMP_PRESETS[systemKey]||[]).find(p=>p.machineNo===pumpAddNo); setPumpRows(prev=>[...prev,{id:uid(), machineNo:pumpAddNo, model:pre?.model||'', location:pre?.location||'', kw:pre?.kw||'', note:pre?.note||''}]); setPumpAddNo('') }}>+ เพิ่มแถว</button></div></div>
       <div className="tablewrap"><table><thead><tr><th>เบอร์เครื่อง *</th><th>รุ่น</th><th>สถานที่</th><th>KW</th><th>VOLT R/S/T</th><th>ชุดคอนโทรล *</th><th>กระแส R/S/T</th><th>ความร้อน *</th><th>สั่นสะเทือน *</th>{sys.kind==='fan'&&<><th>สายพาน *</th><th>ฟิลเตอร์ *</th></>}<th>หมายเหตุ</th><th>รูป *</th><th></th></tr></thead>
-      <tbody>{pumpRows.map((r,idx)=><tr key={r.id||idx}>
-        <td><select value={r.machineNo||''} onChange={e=>{ const v=e.target.value; const pre=(PUMP_PRESETS[systemKey]||[]).find(p=>p.machineNo===v); setPumpRows(prev=>prev.map((x,i)=>i===idx?{...x, machineNo:v, model:pre?.model||x.model||'', location:pre?.location||x.location||'', kw:pre?.kw||x.kw||''}:x)) }}><option value="">-- เลือก --</option>{(PUMP_PRESETS[systemKey]||[]).map(p=><option key={p.machineNo} value={p.machineNo}>{p.machineNo}</option>)}</select>{r.machineNo==='__custom' && <input placeholder="กรอกเบอร์เอง" onChange={e=>setPumpRows(prev=>prev.map((x,i)=>i===idx?{...x, machineNo:e.target.value}:x))} />}</td>
+      <tbody>{pumpRows.map((r,idx)=><tr key={r.id||idx} style={r.machineNo && r.machineNo===highlightMachine ? {background:'#fefce8', outline:'2px solid #eab308'} : {}}>
+        <td><select value={r.machineNo||''} onChange={e=>{ const v=e.target.value; const pre=(PUMP_PRESETS[systemKey]||[]).find(p=>p.machineNo===v); setPumpRows(prev=>prev.map((x,i)=>i===idx?{...x, machineNo:v, model:pre?.model||x.model||'', location:pre?.location||x.location||'', kw:pre?.kw||x.kw||''}:x)) }}><option value="">-- เลือก --</option>{(PUMP_PRESETS[systemKey]||[]).map(p=><option key={p.machineNo} value={p.machineNo}>{p.machineNo}</option>)}</select></td>
         <td><input value={r.model||''} onChange={e=>setPumpRows(prev=>prev.map((x,i)=>i===idx?{...x,model:e.target.value}:x))} /></td>
         <td><input value={r.location||''} onChange={e=>setPumpRows(prev=>prev.map((x,i)=>i===idx?{...x,location:e.target.value}:x))} /></td>
         <td><input value={r.kw||''} onChange={e=>setPumpRows(prev=>prev.map((x,i)=>i===idx?{...x,kw:e.target.value}:x))} /></td>
@@ -663,25 +699,23 @@ export default function App(){
         <td><select value={r.vibration||''} onChange={e=>setPumpRows(prev=>prev.map((x,i)=>i===idx?{...x,vibration:e.target.value}:x))}><option value="">--</option><option>ปกติ</option><option>สั่นเล็กน้อย</option><option>มาก</option></select></td>
         {sys.kind==='fan'&&<><td><select value={r.belt||''} onChange={e=>setPumpRows(prev=>prev.map((x,i)=>i===idx?{...x,belt:e.target.value}:x))}><option value="">--</option><option>ปกติ</option><option>ไม่ปกติ</option></select></td><td><select value={r.filter||''} onChange={e=>setPumpRows(prev=>prev.map((x,i)=>i===idx?{...x,filter:e.target.value}:x))}><option value="">--</option><option>ปกติ</option><option>สกปรกควรทำความสะอาด</option><option>ควรเปลี่ยน</option></select></td></>}
         <td><input value={r.note||''} onChange={e=>setPumpRows(prev=>prev.map((x,i)=>i===idx?{...x,note:e.target.value}:x))} /></td>
-        <td>{r.photo||r.photo_url ? <div style={{position:'relative',width:70}}><img src={r.photo?r.photo.preview:r.photo_url} alt="" style={{width:70,height:52,objectFit:'cover',borderRadius:8}} /><button type="button" onClick={()=>setPumpRows(prev=>prev.map((x,i)=>i===idx?{...x, photo:null, photo_url:''}:x))} style={{position:'absolute',top:-6,right:-6,background:'#c8102e',color:'#fff',border:'none',borderRadius:'50%',width:22,height:22,cursor:'pointer'}}>✕</button></div> : <div style={{display:'flex',flexDirection:'column',gap:4}}><label className="btn btn-line" style={{cursor:'pointer',whiteSpace:'nowrap',textAlign:'center'}}>🖼️ เลือกไฟล์<input type="file" accept="image/*" style={{display:'none'}} onChange={e=>{onRowPhoto(pumpRows,setPumpRows,idx,e.target.files?.[0]); e.target.value=''}} /></label><label className="btn btn-red" style={{cursor:'pointer',whiteSpace:'nowrap',textAlign:'center'}}>📷 ถ่ายจากกล้อง<input type="file" accept="image/*" capture="environment" style={{display:'none'}} onChange={e=>{onRowPhoto(pumpRows,setPumpRows,idx,e.target.files?.[0]); e.target.value=''}} /></label></div>}</td><td><button type="button" className="btn btn-line" onClick={()=>setPumpRows(prev=>prev.length<=1?prev:prev.filter((_,i)=>i!==idx))}>ลบ</button></td>
+        <td>{r.photo||r.photo_url ? <div style={{position:'relative',width:70}}><img src={r.photo?r.photo.preview:r.photo_url} alt="" style={{width:70,height:52,objectFit:'cover',borderRadius:8}} /><button type="button" onClick={()=>setPumpRows(prev=>prev.map((x,i)=>i===idx?{...x, photo:null, photo_url:''}:x))} style={{position:'absolute',top:-6,right:-6,background:'#c8102e',color:'#fff',border:'none',borderRadius:'50%',width:22,height:22,cursor:'pointer'}}>✕</button></div> : <div style={{display:'flex',flexDirection:'column',gap:4}}><label className="btn btn-line" style={{cursor:'pointer',whiteSpace:'nowrap',textAlign:'center'}}>🖼 เลือกไฟล์<input type="file" accept="image/*" style={{display:'none'}} onChange={e=>{onRowPhoto(pumpRows,setPumpRows,idx,e.target.files?.[0]); e.target.value=''}} /></label><label className="btn btn-red" style={{cursor:'pointer',whiteSpace:'nowrap',textAlign:'center'}}>📷 ถ่ายจากกล้อง<input type="file" accept="image/*" capture="environment" style={{display:'none'}} onChange={e=>{onRowPhoto(pumpRows,setPumpRows,idx,e.target.files?.[0]); e.target.value=''}} /></label></div>}</td><td><button type="button" className="btn btn-line" onClick={()=>setPumpRows(prev=>prev.length<=1?prev:prev.filter((_,i)=>i!==idx))}>ลบ</button></td>
       </tr>)}</tbody></table></div>
       <button type="button" className="btn btn-ghost" style={{marginTop:10,width:'100%'}} onClick={()=>{ if(!canAddRow(pumpRows)) return; setPumpRows(prev=>[...prev,{id:uid()}]) }}>+ เพิ่มแถวเครื่องเปล่า</button>
     </div>}
-
     {sys.kind==='fire' && <div className="card">
-      <h3>ตารางตรวจ 98 จุด</h3><p className="small">/ = ปกติ , x = ไม่ปกติ</p>
+      <h3>ตารางตรวจ 98 จุด {highlightMachine && <span style={{background:'#fef08a', padding:'2px 8px', borderRadius:999, fontSize:12}}>มาจาก QR: {highlightMachine}</span>}</h3><p className="small">/ = ปกติ , x = ไม่ปกติ</p>
       <div className="field"><label>เพิ่มจุดจากรายการ - มีทั้งหมด 98 Code (G01 ถึง EF 1204) - พิมพ์ตัวเลขหรือรหัสในช่อง - พิมพ์แล้วลิสต์จะขึ้นมาให้เลือก - มี 98 Code</label><div style={{display:'flex',gap:8}}><div style={{flex:1}}><input value={fireAddCode} onChange={e=>setFireAddCode(e.target.value)} placeholder="พิมพ์ค้นหา เช่น G02 หรือ 1204 หรือ SE-ED - มี 98 Code" style={{width:'100%',padding:12,borderRadius:10,border:'1px solid #e2e8f0',background:'#fff'}} />{(fireAddCode||'').trim() ? <div style={{maxHeight:220,overflowY:'auto',border:'1px solid #e2e8f0',borderRadius:10,marginTop:6,background:'#fff'}}>{FIRE_PRESETS.filter(p=>{const q=(fireAddCode||'').trim().toUpperCase(); if(!q) return true; return p.code.includes(q)||p.location.toUpperCase().includes(q)||p.room.toUpperCase().includes(q)||p.description.toUpperCase().includes(q)}).map(p=><button key={p.code} type="button" onClick={()=>setFireAddCode(p.code)} style={{display:'block',width:'100%',textAlign:'left',padding:'10px 12px',border:'none',borderBottom:'1px solid #f1f5f9',background:fireAddCode===p.code?'#fee2e2':'#fff',cursor:'pointer',fontSize:15}}>{p.code} - {p.description} - {p.location} {p.room}</button>)}</div> : null}<div className="small">พิมพ์ตัวเลขหรือรหัสในช่องข้างบน ลิสต์จะขึ้นมาให้เลือกเอง ไม่ต้องโชว์ค้างไว้แล้ว - พิมพ์แค่ G0 ก็เห็น G01-G05 แล้ว</div></div><button type="button" className="btn btn-red" onClick={()=>{ const code=(fireAddCode||'').trim().toUpperCase(); if(!code) return; if(!canAddRow(fireRows)) return; const pre=FIRE_PRESETS.find(p=>(p.code||'').trim().toUpperCase()===code); setFireRows(prev=>[...prev,{id:uid(), no:pre?pre.no:'', description:pre?pre.description:'', code:code, location:pre?pre.location:'', room:pre?pre.room:''}]); setFireAddCode('') }}>+ เพิ่มแถว</button></div></div>
       <div className="tablewrap"><table><thead><tr><th>No.</th><th style={{minWidth:200}}>Description</th><th style={{minWidth:200}}>Code *</th><th style={{minWidth:200}}>LOCATION</th><th style={{minWidth:200}}>Room</th><th>ปกติ (/)</th><th>ไม่ปกติ (x)</th><th>หมายเหตุ</th><th>รูป *</th><th></th></tr></thead>
-      <tbody>{fireRows.map((r,idx)=><tr key={r.id||idx}><td>{idx+1}</td><td><input value={r.description||''} onChange={e=>setFireRows(prev=>prev.map((x,i)=>i===idx?{...x,description:e.target.value}:x))} /></td>
+      <tbody>{fireRows.map((r,idx)=><tr key={r.id||idx} style={r.code && (r.code||'').trim().toUpperCase()===(highlightMachine||'').trim().toUpperCase() ? {background:'#fefce8', outline:'2px solid #eab308'} : {}}><td>{idx+1}</td><td><input value={r.description||''} onChange={e=>setFireRows(prev=>prev.map((x,i)=>i===idx?{...x,description:e.target.value}:x))} /></td>
         <td style={{minWidth:200}}><input value={r.code||''} onChange={e=>{ const v=e.target.value; const pre=FIRE_PRESETS.find(p=>(p.code||'').trim().toUpperCase()===(v||'').trim().toUpperCase()); setFireRows(prev=>prev.map((x,i)=>i===idx?{...x, code:v, description:pre?.description||x.description||'', location:pre?.location||x.location||'', room:pre?.room||x.room||'', no:pre?.no||x.no}:x)) }} placeholder="พิมพ์ Code" style={{width:200,minWidth:200,padding:8,borderRadius:8,border:'1px solid #e2e8f0',background:'#fff'}} /></td>
         <td><input value={r.location||''} onChange={e=>setFireRows(prev=>prev.map((x,i)=>i===idx?{...x,location:e.target.value}:x))} /></td><td><input value={r.room||''} onChange={e=>setFireRows(prev=>prev.map((x,i)=>i===idx?{...x,room:e.target.value}:x))} /></td>
         <td><button type="button" className={r.result==='ปกติ'?'btn btn-green':'btn btn-ghost'} onClick={()=>setFireRows(prev=>prev.map((x,i)=>i===idx?{...x,result:'ปกติ'}:x))}>/</button></td>
         <td><button type="button" className={r.result==='ไม่ปกติ'?'btn btn-red':'btn btn-ghost'} onClick={()=>setFireRows(prev=>prev.map((x,i)=>i===idx?{...x,result:'ไม่ปกติ'}:x))}>x</button></td>
         <td><input value={r.note||''} onChange={e=>setFireRows(prev=>prev.map((x,i)=>i===idx?{...x,note:e.target.value}:x))} /></td>
-        <td>{r.photo||r.photo_url ? <div style={{position:'relative',width:70}}><img src={r.photo?r.photo.preview:r.photo_url} alt="" style={{width:70,height:52,objectFit:'cover',borderRadius:8}} /><button type="button" onClick={()=>setFireRows(prev=>prev.map((x,i)=>i===idx?{...x, photo:null, photo_url:''}:x))} style={{position:'absolute',top:-6,right:-6,background:'#c8102e',color:'#fff',border:'none',borderRadius:'50%',width:22,height:22,cursor:'pointer'}}>✕</button></div> : <div style={{display:'flex',flexDirection:'column',gap:4}}><label className="btn btn-line" style={{cursor:'pointer',whiteSpace:'nowrap',textAlign:'center'}}>🖼️ เลือกไฟล์<input type="file" accept="image/*" style={{display:'none'}} onChange={e=>{onRowPhoto(fireRows,setFireRows,idx,e.target.files?.[0]); e.target.value=''}} /></label><label className="btn btn-red" style={{cursor:'pointer',whiteSpace:'nowrap',textAlign:'center'}}>📷 ถ่ายจากกล้อง<input type="file" accept="image/*" capture="environment" style={{display:'none'}} onChange={e=>{onRowPhoto(fireRows,setFireRows,idx,e.target.files?.[0]); e.target.value=''}} /></label></div>}</td><td><button type="button" className="btn btn-line" onClick={()=>setFireRows(prev=>prev.length<=1?prev:prev.filter((_,i)=>i!==idx))}>ลบ</button></td></tr>)}</tbody></table></div>
+        <td>{r.photo||r.photo_url ? <div style={{position:'relative',width:70}}><img src={r.photo?r.photo.preview:r.photo_url} alt="" style={{width:70,height:52,objectFit:'cover',borderRadius:8}} /><button type="button" onClick={()=>setFireRows(prev=>prev.map((x,i)=>i===idx?{...x, photo:null, photo_url:''}:x))} style={{position:'absolute',top:-6,right:-6,background:'#c8102e',color:'#fff',border:'none',borderRadius:'50%',width:22,height:22,cursor:'pointer'}}>✕</button></div> : <div style={{display:'flex',flexDirection:'column',gap:4}}><label className="btn btn-line" style={{cursor:'pointer',whiteSpace:'nowrap',textAlign:'center'}}>🖼 เลือกไฟล์<input type="file" accept="image/*" style={{display:'none'}} onChange={e=>{onRowPhoto(fireRows,setFireRows,idx,e.target.files?.[0]); e.target.value=''}} /></label><label className="btn btn-red" style={{cursor:'pointer',whiteSpace:'nowrap',textAlign:'center'}}>📷 ถ่ายจากกล้อง<input type="file" accept="image/*" capture="environment" style={{display:'none'}} onChange={e=>{onRowPhoto(fireRows,setFireRows,idx,e.target.files?.[0]); e.target.value=''}} /></label></div>}</td><td><button type="button" className="btn btn-line" onClick={()=>setFireRows(prev=>prev.length<=1?prev:prev.filter((_,i)=>i!==idx))}>ลบ</button></td></tr>)}</tbody></table></div>
       <button type="button" className="btn btn-ghost" style={{marginTop:10,width:'100%'}} onClick={()=>{ if(!canAddRow(fireRows)) return; setFireRows(prev=>[...prev,{id:uid()}]) }}>+ เพิ่มแถวจุดเปล่า</button>
     </div>}
-
     {sys.kind==='cooling' && <PhotoBox photos={photos} setPhotos={setPhotos} />}
     {sys.kind!=='cooling' && <div className="card"><b>รูปประจำเครื่อง - เลือกไฟล์หรือถ่ายจากกล้อง ในตารางแถวของเครื่องนั้นๆ</b><p className="small">แถวที่ 1 ต้องแนบรูปก่อนถึงจะเพิ่มแถวที่ 2 ได้ แนบรูปแถวที่ 2 แล้วถึงจะเพิ่มแถวที่ 3 ได้ - 1 เครื่องต่อ 1 รูป ห้ามใช้รูปเดียวกันซ้ำ</p></div>}
     <div className="card">
@@ -691,6 +725,6 @@ export default function App(){
       <button className="btn btn-red" style={{width:'100%',marginTop:12}} onClick={saveForm}>บันทึกข้อมูล</button>
       <p className="small" style={{textAlign:'center',marginTop:8}}>{hasSupabase?'บันทึกขึ้น Cloud + รูปอัปโหลดขึ้น Storage':'โหมดทดลอง: บันทึกในเครื่องนี้ (ยังไม่ขึ้น Cloud จนกว่าจะใส่ .env)'} </p>
     </div>
-    <div className="nav"><button onClick={()=>setView('dashboard')}>🏠 หน้าหลัก</button><button onClick={()=>setView('form')}>📋 ตรวจเช็ค</button><button onClick={()=>setView('history')}>📁 ประวัติ</button></div>
+    <div className="nav"><button onClick={()=>setView('dashboard')}>🏠 หน้าหลัก</button><button onClick={()=>setView('form')}>📋 ตรวจเช็ค</button><button onClick={()=>setView('qr')}>📷 QR Code</button><button onClick={()=>setView('history')}>📁 ประวัติ</button></div>
   </div>
 }
