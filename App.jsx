@@ -227,14 +227,19 @@ function PhotoBox({photos, setPhotos}){
   const [camOn,setCamOn] = useState(false)
   const [camErr,setCamErr] = useState('')
   const [stream,setStream] = useState(null)
+  const photoKey = (f)=> (f.name||'')+'|'+(f.size||0)+'|'+(f.lastModified||0)
   const addFiles = async (list)=>{
     const arr = Array.from(list||[])
-    for(const f of arr){
-      try{ const small = f.type.startsWith('image/') ? await compressImage(f) : f
-        const preview = URL.createObjectURL(small)
-        setPhotos(prev=>[...prev, {file:small, preview, name:small.name}])
-      }catch{ setPhotos(prev=>[...prev,{file:f, preview:URL.createObjectURL(f), name:f.name}]) }
-    }
+    if(!arr.length) return
+    if(photos.length>=1){ alert('แนบได้ 1 รูปต่อเครื่องเท่านั้น - ถ้าจะเปลี่ยนรูป ให้กดลบรูปเดิมก่อน'); return }
+    if(arr.length>1){ alert('แนบได้ 1 รูปต่อเครื่องเท่านั้น - เลือกมาแค่รูปเดียวครับ'); return }
+    const f = arr[0]
+    const key = photoKey(f)
+    if(photos.some(p=>p.key===key)){ alert('รูปนี้แนบไปแล้วครับ - ห้ามใช้รูปเดียวกันซ้ำ'); return }
+    try{ const small = f.type.startsWith('image/') ? await compressImage(f) : f
+      const preview = URL.createObjectURL(small)
+      setPhotos(prev=>[...prev, {file:small, preview, name:small.name, key}])
+    }catch{ setPhotos(prev=>[...prev,{file:f, preview:URL.createObjectURL(f), name:f.name, key}]) }
   }
   const startCam = async ()=>{
     setCamErr('')
@@ -250,21 +255,22 @@ function PhotoBox({photos, setPhotos}){
     const c = document.createElement('canvas'); c.width=v.videoWidth||1280; c.height=v.videoHeight||720
     c.getContext('2d').drawImage(v,0,0,c.width,c.height)
     c.toBlob(async b=>{
+      if(photos.length>=1){ alert('แนบได้ 1 รูปต่อเครื่องเท่านั้น - ถ้าจะเปลี่ยนรูป ให้กดลบรูปเดิมก่อน'); stopCam(); return }
       const f = new File([b],'camera.jpg',{type:'image/jpeg'})
       const small = await compressImage(f)
-      setPhotos(prev=>[...prev,{file:small, preview:URL.createObjectURL(small), name:'camera.jpg'}])
+      setPhotos(prev=>[...prev,{file:small, preview:URL.createObjectURL(small), name:'camera.jpg', key:'camera|'+Date.now()}])
       stopCam()
     },'image/jpeg',0.85)
   }
   useEffect(()=>()=>{ stream?.getTracks().forEach(t=>t.stop()) },[stream])
   return <div className="card">
-    <b>แนบรูปถ่าย (ใช้ได้จริงบนเว็บ https)</b>
-    <p className="small">กด ถ่ายรูปจากกล้อง จะเด้งไปแอปกล้องของเครื่องบนมือถือ หรือกด เลือกจากไฟล์รูป ก็ได้ รูปจะถูกอัปโหลดขึ้น Supabase Storage ตอนกดบันทึก</p>
+    <b>แนบรูปถ่าย - ได้ 1 รูปต่อเครื่อง ห้ามใช้รูปเดียวกันซ้ำ (ใช้ได้จริงบนเว็บ https)</b>
+    <p className="small">แนบได้แค่ 1 รูปต่อเครื่องเท่านั้น ถ้าเลือกรูปซ้ำกับรูปเดิมจะถูกบล็อก ถ้าจะเปลี่ยนรูปให้กดลบรูปเดิมก่อน แล้วค่อยแนบรูปใหม่ รูปจะถูกอัปโหลดขึ้น Supabase Storage ตอนกดบันทึก</p>
     <div className="row">
       <button type="button" className="btn btn-red" onClick={()=>fileRef.current?.click()}>เลือกจากไฟล์รูป</button>
       <button type="button" className="btn btn-ghost" onClick={camOn?stopCam:startCam}>{camOn?'ปิดกล้อง':'ถ่ายรูปจากกล้อง'}</button>
     </div>
-    <input ref={fileRef} type="file" accept="image/*" multiple style={{display:'none'}} onChange={e=>{addFiles(e.target.files); e.target.value=''}} />
+    <input ref={fileRef} type="file" accept="image/*" style={{display:'none'}} onChange={e=>{addFiles(e.target.files); e.target.value=''}} />
     {/* ปุ่มนี้คือตัวที่ทำให้มือถือเด้งไปแอปกล้องโดยตรง เสถียรสุด */}
     <label className="btn btn-line" style={{display:'block',textAlign:'center',marginTop:8,cursor:'pointer'}}>📷 เปิดแอปกล้องของเครื่อง (แนะนำบนมือถือ)
       <input type="file" accept="image/*" capture="environment" style={{display:'none'}} onChange={e=>{addFiles(e.target.files); e.target.value=''}} />
@@ -651,7 +657,7 @@ export default function App(){
 
     {sys.kind==='fire' && <div className="card">
       <h3>ตารางตรวจ 98 จุด</h3><p className="small">/ = ปกติ , x = ไม่ปกติ</p>
-      <div className="field"><label>เพิ่มจุดจากรายการ - มีทั้งหมด 98 Code (G01 ถึง EF 1204) - พิมพ์ค้นหาในช่องข้างล่าง หรือแตะชื่อในลิสต์ข้างล่าง - มี 98 Code</label><div style={{display:'flex',gap:8}}><div style={{flex:1}}><input value={fireAddCode} onChange={e=>setFireAddCode(e.target.value)} placeholder="พิมพ์ค้นหา เช่น G02 หรือ 1204 หรือ SE-ED - มี 98 Code" style={{width:'100%',padding:12,borderRadius:10,border:'1px solid #e2e8f0',background:'#fff'}} /><div style={{maxHeight:220,overflowY:'auto',border:'1px solid #e2e8f0',borderRadius:10,marginTop:6,background:'#fff'}}>{FIRE_PRESETS.filter(p=>{const q=(fireAddCode||'').trim().toUpperCase(); if(!q) return true; return p.code.includes(q)||p.location.toUpperCase().includes(q)||p.room.toUpperCase().includes(q)||p.description.toUpperCase().includes(q)}).map(p=><button key={p.code} type="button" onClick={()=>setFireAddCode(p.code)} style={{display:'block',width:'100%',textAlign:'left',padding:'10px 12px',border:'none',borderBottom:'1px solid #f1f5f9',background:fireAddCode===p.code?'#fee2e2':'#fff',cursor:'pointer',fontSize:15}}>{p.code} - {p.description} - {p.location} {p.room}</button>)}</div><div className="small">แตะที่ชื่อในลิสต์ข้างบนนี้ได้เลย ไม่ต้องพิมพ์ให้ครบก็ได้ พิมพ์แค่ G0 ก็เห็น G01-G05 แล้ว</div></div><button type="button" className="btn btn-red" onClick={()=>{ const code=(fireAddCode||'').trim().toUpperCase(); if(!code) return; const pre=FIRE_PRESETS.find(p=>(p.code||'').trim().toUpperCase()===code); setFireRows(prev=>[...prev,{id:uid(), no:pre?pre.no:'', description:pre?pre.description:'', code:code, location:pre?pre.location:'', room:pre?pre.room:''}]); setFireAddCode('') }}>+ เพิ่มแถว</button></div></div>
+      <div className="field"><label>เพิ่มจุดจากรายการ - มีทั้งหมด 98 Code (G01 ถึง EF 1204) - พิมพ์ตัวเลขหรือรหัสในช่อง - พิมพ์แล้วลิสต์จะขึ้นมาให้เลือก - มี 98 Code</label><div style={{display:'flex',gap:8}}><div style={{flex:1}}><input value={fireAddCode} onChange={e=>setFireAddCode(e.target.value)} placeholder="พิมพ์ค้นหา เช่น G02 หรือ 1204 หรือ SE-ED - มี 98 Code" style={{width:'100%',padding:12,borderRadius:10,border:'1px solid #e2e8f0',background:'#fff'}} />{(fireAddCode||'').trim() ? <div style={{maxHeight:220,overflowY:'auto',border:'1px solid #e2e8f0',borderRadius:10,marginTop:6,background:'#fff'}}>{FIRE_PRESETS.filter(p=>{const q=(fireAddCode||'').trim().toUpperCase(); if(!q) return true; return p.code.includes(q)||p.location.toUpperCase().includes(q)||p.room.toUpperCase().includes(q)||p.description.toUpperCase().includes(q)}).map(p=><button key={p.code} type="button" onClick={()=>setFireAddCode(p.code)} style={{display:'block',width:'100%',textAlign:'left',padding:'10px 12px',border:'none',borderBottom:'1px solid #f1f5f9',background:fireAddCode===p.code?'#fee2e2':'#fff',cursor:'pointer',fontSize:15}}>{p.code} - {p.description} - {p.location} {p.room}</button>)}</div> : null}<div className="small">พิมพ์ตัวเลขหรือรหัสในช่องข้างบน ลิสต์จะขึ้นมาให้เลือกเอง ไม่ต้องโชว์ค้างไว้แล้ว - พิมพ์แค่ G0 ก็เห็น G01-G05 แล้ว</div></div><button type="button" className="btn btn-red" onClick={()=>{ const code=(fireAddCode||'').trim().toUpperCase(); if(!code) return; const pre=FIRE_PRESETS.find(p=>(p.code||'').trim().toUpperCase()===code); setFireRows(prev=>[...prev,{id:uid(), no:pre?pre.no:'', description:pre?pre.description:'', code:code, location:pre?pre.location:'', room:pre?pre.room:''}]); setFireAddCode('') }}>+ เพิ่มแถว</button></div></div>
       <div className="tablewrap"><table><thead><tr><th>No.</th><th style={{minWidth:200}}>Description</th><th style={{minWidth:200}}>Code *</th><th style={{minWidth:200}}>LOCATION</th><th style={{minWidth:200}}>Room</th><th>ปกติ (/)</th><th>ไม่ปกติ (x)</th><th>หมายเหตุ</th><th></th></tr></thead>
       <tbody>{fireRows.map((r,idx)=><tr key={r.id||idx}><td>{idx+1}</td><td><input value={r.description||''} onChange={e=>setFireRows(prev=>prev.map((x,i)=>i===idx?{...x,description:e.target.value}:x))} /></td>
         <td style={{minWidth:200}}><input value={r.code||''} onChange={e=>{ const v=e.target.value; const pre=FIRE_PRESETS.find(p=>(p.code||'').trim().toUpperCase()===(v||'').trim().toUpperCase()); setFireRows(prev=>prev.map((x,i)=>i===idx?{...x, code:v, description:pre?.description||x.description||'', location:pre?.location||x.location||'', room:pre?.room||x.room||'', no:pre?.no||x.no}:x)) }} placeholder="พิมพ์ Code" style={{width:200,minWidth:200,padding:8,borderRadius:8,border:'1px solid #e2e8f0',background:'#fff'}} /></td>
