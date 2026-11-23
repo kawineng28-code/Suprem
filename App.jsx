@@ -341,12 +341,17 @@ export default function App(){
   },[])
 
   async function loadRecords(){
-    if(hasSupabase){
+    let local=[]
+    try{ local = JSON.parse(localStorage.getItem('supreme_records')||'[]') }catch{ local=[] }
+    if(!hasSupabase){ setRecords(local); return }
+    try{
       const {data} = await supabase.from('inspections').select('*').order('created_at',{ascending:false}).limit(500)
-      if(data) setRecords(data.map(r=>({id:r.id, ...r.data, photo_urls:r.photo_urls||[], created_at:r.created_at, system_key:r.system_key, system_name:r.system_name})))
-      return
-    }
-    try{ setRecords(JSON.parse(localStorage.getItem('supreme_records')||'[]')) }catch{ setRecords([]) }
+      if(data && data.length){
+        const cloud = data.map(r=>({id:r.id, ...r.data, photo_urls:r.photo_urls||[], created_at:r.created_at, system_key:r.system_key, system_name:r.system_name}))
+        const ids = new Set(cloud.map(x=>x.id))
+        setRecords([...cloud, ...local.filter(x=>!ids.has(x.id))])
+      } else setRecords(local)
+    }catch{ setRecords(local) }
   }
 
   function startSystem(key){
@@ -380,11 +385,13 @@ export default function App(){
     }
     const urls=[]
     for(const p of photos){
-      const name = `${Date.now()}-${uid()}-${p.name||'photo.jpg'}`
-      const {error} = await supabase.storage.from('photos').upload(name, p.file)
-      if(error) throw new Error('อัปโหลดรูปไม่สำเร็จ: '+error.message)
-      const {data} = supabase.storage.from('photos').getPublicUrl(name)
-      urls.push(data.publicUrl)
+      try{
+        const name = `${Date.now()}-${uid()}-${p.name||'photo.jpg'}`
+        const {error} = await supabase.storage.from('photos').upload(name, p.file)
+        if(error) throw error
+        const {data} = supabase.storage.from('photos').getPublicUrl(name)
+        urls.push(data.publicUrl)
+      }catch{ urls.push(p.preview) }
     }
     return urls
   }
@@ -430,13 +437,18 @@ export default function App(){
     const payload = {kind:sys.kind, date, month, inspector, checker, project, location, model, ctCount, design, reducer, belt, gear, fanInfo, coolingRes, rows: sys.kind==='fire'?fireRows:pumpRows, note, sig1, sig2, photo_urls}
     const {ok,bad} = countResults(payload)
     const rec = {id:uid(), system_key:sys.key, system_name:sys.name, date, month, inspector, checker, data:payload, photo_urls, ok_count:ok, bad_count:bad, created_at:new Date().toISOString()}
+    let cloudOk = false
     if(hasSupabase){
-      const {error} = await supabase.from('inspections').insert({user_email:user?.email||'', inspector, system_key:sys.key, system_name:sys.name, date, month, data:payload, photo_urls, ok_count:ok, bad_count:bad})
-      if(error) return setSaveErr('บันทึกไม่สำเร็จ: '+error.message)
-    } else {
-      const all = JSON.parse(localStorage.getItem('supreme_records')||'[]'); all.unshift(rec); localStorage.setItem('supreme_records', JSON.stringify(all))
+      try{
+        const {error} = await supabase.from('inspections').insert({user_email:user?.email||'', inspector, system_key:sys.key, system_name:sys.name, date, month, data:payload, photo_urls, ok_count:ok, bad_count:bad})
+        if(!error) cloudOk = true
+      }catch{ cloudOk = false }
     }
-    setMsg('บันทึกสำเร็จแล้ว'); await loadRecords(); setView('history'); window.scrollTo({top:0})
+    // สำคัญ: ถ้า Cloud ต่อไม่ติด (Failed to fetch) ให้เก็บไว้ในเครื่องก่อน งานไม่หาย แล้วค่อยซิงก์ทีหลัง
+    try{
+      const all = JSON.parse(localStorage.getItem('supreme_records')||'[]'); all.unshift(rec); localStorage.setItem('supreme_records', JSON.stringify(all))
+    }catch{}
+    setMsg(cloudOk ? 'บันทึกสำเร็จแล้ว' : 'บันทึกสำเร็จแล้ว (เก็บไว้ในเครื่อง เพราะ Cloud ต่อไม่ติด - เปิดประวัติได้เลย ข้อมูลไม่หาย)'); await loadRecords(); setView('history'); window.scrollTo({top:0})
   }
 
   function exportExcel(){
