@@ -497,7 +497,7 @@ export default function App(){
 
   if(view==='login'){
     return <div className="wrap">
-      <div className="hero" style={{display:"flex",alignItems:"center",justifyContent:"center",background:"linear-gradient(135deg,#c8102e,#ff5a5a)",color:"#fff",fontSize:26,fontWeight:800,minHeight:140,textAlign:"center",padding:16}}>🏢 อาคารสุพรีม</div>
+      <img className="hero" src="/hero.jpg" alt="ช่างอาคารสุพรีม" />
       <div className="card" style={{textAlign:'center'}}><h2 style={{margin:'6px 0'}}>อาคารสุพรีม</h2><p className="small">ตรวจเช็คระบบอาคาร • ถ่ายรูปแนบฟอร์มได้จริง (ต้องเปิดผ่าน https)</p>
       {!hasSupabase && <div className="okbox">โหมดทดลอง: ใช้ <b>admin / 1234</b> ได้เลย ถ้าตั้งค่า Supabase แล้ว จะใช้สมัครสมาชิกจริงได้</div>}
       {hasSupabase && <div className="okbox">เชื่อมต่อ Supabase แล้ว • สมัครสมาชิกและอัปโหลดรูปขึ้น Cloud ได้</div>}
@@ -524,7 +524,7 @@ export default function App(){
   if(view==='dashboard'){
     return <div className="wrap">
       <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}><div><b>อาคารสุพรีม</b><div className="small">{user?.name||user?.email} • {hasSupabase?'เชื่อม Cloud แล้ว':'โหมดทดลอง'}</div></div><button className="btn btn-ghost" onClick={async()=>{ if(hasSupabase) await supabase.auth.signOut(); setUser(null); setView('login') }}>ออกจากระบบ</button></div>
-      <div className="hero" style={{display:"flex",alignItems:"center",justifyContent:"center",background:"linear-gradient(135deg,#c8102e,#ff5a5a)",color:"#fff",fontSize:22,fontWeight:800,minHeight:90,marginTop:10}}>🏢 อาคารสุพรีม</div>
+      <img className="hero" src="/hero.jpg" alt="" style={{marginTop:10}} />
       <div className="card"><b>ตรวจเช็คระบบอาคาร</b><div style={{display:'flex',gap:10,marginTop:10}}><div style={{flex:1,background:'#eaf7ef',borderRadius:12,padding:12,textAlign:'center'}}><div style={{fontSize:22,fontWeight:800,color:'#0e8a4d'}}>{totalOk} ✓</div><div className="small">ปกติ</div></div><div style={{flex:1,background:'#fff0f1',borderRadius:12,padding:12,textAlign:'center'}}><div style={{fontSize:22,fontWeight:800,color:'#c8102e'}}>{totalBad} ✗</div><div className="small">ไม่ปกติ</div></div></div></div>
       {SYSTEMS.map(s=>{
         const n = records.filter(r=>r.system_key===s.key).length
@@ -651,7 +651,7 @@ export default function App(){
 
     {sys.kind==='fire' && <div className="card">
       <h3>ตารางตรวจ 98 จุด</h3><p className="small">/ = ปกติ , x = ไม่ปกติ</p>
-      <div className="field"><label>เพิ่มจุดจากรายการ - มีทั้งหมด 98 Code (G01 ถึง EF 1204) เลื่อนลงในช่องเลือกดูให้ครบ</label><div style={{display:'flex',gap:8}}><select value={fireAddCode} onChange={e=>setFireAddCode(e.target.value)} style={{flex:1,padding:12,borderRadius:10,border:'1px solid #e2e8f0'}}><option value="">-- เลือก Code --</option>{FIRE_PRESETS.map(p=><option key={p.code} value={p.code}>{p.code}</option>)}</select><button type="button" className="btn btn-red" onClick={()=>{ if(!fireAddCode) return; const pre=FIRE_PRESETS.find(p=>p.code===fireAddCode); setFireRows(prev=>[...prev,{id:uid(), no:pre.no, description:pre.description, code:pre.code, location:pre.location, room:pre.room}]); setFireAddCode('') }}>+ เพิ่มแถว</button></div></div>
+      <div className="field"><label>เพิ่มจุดจากรายการ (แสดงเฉพาะ Code)</label><div style={{display:'flex',gap:8}}><select value={fireAddCode} onChange={e=>setFireAddCode(e.target.value)} style={{flex:1,padding:12,borderRadius:10,border:'1px solid #e2e8f0'}}><option value="">-- เลือก Code --</option>{FIRE_PRESETS.map(p=><option key={p.code} value={p.code}>{p.code}</option>)}</select><button type="button" className="btn btn-red" onClick={()=>{ if(!fireAddCode) return; const pre=FIRE_PRESETS.find(p=>p.code===fireAddCode); setFireRows(prev=>[...prev,{id:uid(), no:pre.no, description:pre.description, code:pre.code, location:pre.location, room:pre.room}]); setFireAddCode('') }}>+ เพิ่มแถว</button></div></div>
       <div className="tablewrap"><table><thead><tr><th>No.</th><th>Description</th><th>Code *</th><th>LOCATION</th><th>Room</th><th>ปกติ (/)</th><th>ไม่ปกติ (x)</th><th>หมายเหตุ</th><th></th></tr></thead>
       <tbody>{fireRows.map((r,idx)=><tr key={r.id||idx}><td>{idx+1}</td><td><input value={r.description||''} onChange={e=>setFireRows(prev=>prev.map((x,i)=>i===idx?{...x,description:e.target.value}:x))} /></td>
         <td><select value={r.code||''} onChange={e=>{ const v=e.target.value; const pre=FIRE_PRESETS.find(p=>p.code===v); setFireRows(prev=>prev.map((x,i)=>i===idx?{...x, code:v, description:pre?.description||x.description||'', location:pre?.location||x.location||'', room:pre?.room||x.room||'', no:pre?.no||x.no}:x)) }}><option value="">--</option>{FIRE_PRESETS.map(p=><option key={p.code} value={p.code}>{p.code}</option>)}<option value="__custom">กรอกเอง…</option></select>{r.code==='__custom' && <input placeholder="กรอก Code เอง" onChange={e=>setFireRows(prev=>prev.map((x,i)=>i===idx?{...x,code:e.target.value}:x))} />}</td>
