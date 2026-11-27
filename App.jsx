@@ -565,7 +565,6 @@ export default function App(){
         </div>
         <button className="btn btn-red" style={{width:'100%'}} onClick={exportExcel}>ส่งออก Excel (.xlsx) แยกชีตตามระบบ</button>
         <button className="btn btn-line" style={{width:'100%',marginTop:8,background:'#fff1f2',borderColor:'#c8102e',color:'#c8102e'}} onClick={async()=>{ if(!confirm('ลบข้อมูลทั้งหมดที่เห็นในหน้านี้เลยใช่ไหม? (ข้อมูลเทสทั้งหมดจะหาย)')) return; if(!confirm('ยืนยันอีกครั้ง - ลบทั้งหมดจริงๆ ใช่ไหม? กู้คืนไม่ได้นะครับ')) return; const ids=list.map(r=>r.id); if(hasSupabase){ for(const id of ids){ await supabase.from('inspections').delete().eq('id', id) } } const all=JSON.parse(localStorage.getItem('supreme_records')||'[]').filter(x=>!ids.includes(x.id)); localStorage.setItem('supreme_records', JSON.stringify(all)); await loadRecords(); alert('ลบข้อมูลทั้งหมดแล้วครับ') }}>🗑️ ลบข้อมูลทั้งหมดในหน้านี้ (เทส)</button>
-        <button className="btn btn-line" style={{width:'100%',marginTop:8}} onClick={()=>{ if(!confirm('ล้างข้อมูลที่ค้างในเครื่องนี้ทั้งหมดเลยใช่ไหม? (ใช้ตอนกดลบแล้วเลขไม่ลด)')) return; localStorage.removeItem('supreme_records'); loadRecords(); alert('ล้างข้อมูลในเครื่องนี้แล้วครับ - กลับไปหน้าหลักเลขต้องเป็น 0') }}>🧹 ล้างข้อมูลที่ค้างในเครื่องนี้ (ถ้ากดลบแล้วเลขไม่ลด)</button>
         {msg && <div className="okbox">{msg}</div>}
       </div>
       {list.length===0 && <div className="card">ยังไม่มีประวัติ หรือไม่ตรงกับตัวกรอง</div>}
@@ -581,7 +580,7 @@ export default function App(){
             <button className="btn btn-line" onClick={async()=>{
               if(!confirm('ลบรายการนี้?')) return
               if(hasSupabase) await supabase.from('inspections').delete().eq('id', r.id)
-              const all=JSON.parse(localStorage.getItem('supreme_records')||'[]').filter(x=>x.id!==r.id); localStorage.setItem('supreme_records', JSON.stringify(all))
+              else { const all=JSON.parse(localStorage.getItem('supreme_records')||'[]').filter(x=>x.id!==r.id); localStorage.setItem('supreme_records', JSON.stringify(all)) }
               loadRecords()
             }}>ลบ</button>
           </div>
